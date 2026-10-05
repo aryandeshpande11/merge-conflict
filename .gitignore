@@ -5,3 +5,15 @@ grails-core/
 *.pkl 
 merge_conflicts_dataset.csv 
 ml_engineered_features.csv 
+
+# Byte-compiled / optimized / test files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.env
+backend/.env
+venv/
+backend/venv/

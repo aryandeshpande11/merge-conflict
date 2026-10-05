@@ -1,0 +1,53 @@
+{
+  "model": "XGBoost",
+  "version": "v3",
+  "features": [
+    "Conflicting_Files_Count",
+    "Author_Match",
+    "Lines_Changed_Local",
+    "Lines_Changed_Incoming",
+    "Total_Lines_Changed",
+    "Conflict_Chunk_Count",
+    "Avg_Chunk_Size",
+    "Local_Conflict_Lines",
+    "Incoming_Conflict_Lines",
+    "Local_Incoming_Ratio",
+    "Primary_File_Type",
+    "Time_Diff_Hours"
+  ],
+  "classes": [
+    "combine_both",
+    "keep_incoming",
+    "keep_local"
+  ],
+  "algorithm": "XGBoost",
+  "hyperparameters": {
+    "objective": "multi:softprob",
+    "num_class": 3,
+    "max_depth": 6,
+    "learning_rate": 0.05,
+    "n_estimators": 300,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "min_child_weight": 3,
+    "gamma": 0.1,
+    "reg_alpha": 0.1,
+    "reg_lambda": 1.5
+  },
+  "metrics": {
+    "cross_validation_accuracy": "82.34% \u00b1 2.33%",
+    "cv_scores": [
+      0.8251,
+      0.847,
+      0.8242,
+      0.8407,
+      0.7802
+    ],
+    "full_dataset_accuracy": "98.49%"
+  },
+  "class_mapping": {
+    "0": "combine_both",
+    "1": "keep_incoming",
+    "2": "keep_local"
+  }
+}

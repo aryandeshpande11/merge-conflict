@@ -92,10 +92,51 @@ def main():
     for feat, imp in sorted(importance.items(), key=lambda x: -x[1]):
         print(f"  {feat}: {imp:.4f}")
 
-    # Save model
+    import os
+    import json
+
+    # Save pickle model
     with open('xgboost_merge_model_v3.pkl', 'wb') as f:
         pickle.dump({'model': model, 'encoder': le, 'features': FEATURE_COLS}, f)
     print("\nV3 Model saved as 'xgboost_merge_model_v3.pkl'!")
+
+    # Save native XGBoost JSON model and metadata for FastAPI backend
+    models_dir = os.path.join('backend', 'models')
+    os.makedirs(models_dir, exist_ok=True)
+    json_model_path = os.path.join(models_dir, 'merge_conflict_model.json')
+    model.save_model(json_model_path)
+    print(f"Native XGBoost JSON model saved as '{json_model_path}'!")
+
+    metadata = {
+        "model": "XGBoost",
+        "version": "v3",
+        "features": FEATURE_COLS,
+        "classes": list(le.classes_),
+        "algorithm": "XGBoost",
+        "hyperparameters": {
+            "objective": "multi:softprob",
+            "num_class": len(le.classes_),
+            "max_depth": 6,
+            "learning_rate": 0.05,
+            "n_estimators": 300,
+            "subsample": 0.8,
+            "colsample_bytree": 0.8,
+            "min_child_weight": 3,
+            "gamma": 0.1,
+            "reg_alpha": 0.1,
+            "reg_lambda": 1.5
+        },
+        "metrics": {
+            "cross_validation_accuracy": f"{cv_scores.mean()*100:.2f}% ± {cv_scores.std()*100:.2f}%",
+            "cv_scores": [round(float(s), 4) for s in cv_scores],
+            "full_dataset_accuracy": f"{accuracy_score(y, y_pred) * 100:.2f}%"
+        },
+        "class_mapping": {int(i): str(c) for i, c in enumerate(le.classes_)}
+    }
+    metadata_path = os.path.join(models_dir, 'model_metadata.json')
+    with open(metadata_path, 'w') as f:
+        json.dump(metadata, f, indent=2)
+    print(f"Model metadata saved as '{metadata_path}'!")
 
 if __name__ == "__main__":
     main()
