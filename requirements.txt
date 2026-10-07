@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+xgboost==2.0.3
+pandas
+scikit-learn
+prometheus-fastapi-instrumentator

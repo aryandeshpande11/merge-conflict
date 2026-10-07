@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: merge-predictor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: merge-predictor
+  template:
+    metadata:
+      labels:
+        app: merge-predictor
+    spec:
+      containers:
+      - name: merge-predictor
+        image: merge-predictor:1.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
