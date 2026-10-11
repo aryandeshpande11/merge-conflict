@@ -5,6 +5,10 @@ pipeline {
         DOCKER_IMAGE = "merge-predictor:1.0"
     }
 
+    triggers {
+        pollSCM('H/5 * * * *')
+    }
+
     stages {
         stage('Checkout') {
             steps {
