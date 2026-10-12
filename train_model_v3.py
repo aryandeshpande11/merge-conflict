@@ -5,7 +5,6 @@ from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.utils.class_weight import compute_sample_weight
-from imblearn.over_sampling import SMOTE
 import pickle
 import warnings
 warnings.filterwarnings('ignore')
@@ -25,6 +24,26 @@ FEATURE_COLS = [
     'Time_Diff_Hours'
 ]
 
+def manual_oversample(X, y):
+    """
+    Replaces SMOTE with pure pandas random oversampling.
+    Upsamples minority classes to match the majority class count.
+    """
+    df = X.copy()
+    df['__label__'] = y
+    max_count = df['__label__'].value_counts().max()
+    
+    balanced_chunks = []
+    for label_val in df['__label__'].unique():
+        chunk = df[df['__label__'] == label_val]
+        oversampled = chunk.sample(max_count, replace=True, random_state=42)
+        balanced_chunks.append(oversampled)
+    
+    balanced = pd.concat(balanced_chunks).sample(frac=1, random_state=42).reset_index(drop=True)
+    X_res = balanced[FEATURE_COLS]
+    y_res = balanced['__label__'].values
+    return X_res, y_res
+
 def main():
     print("Loading V3 dataset...")
     df = pd.read_csv('ml_features_v3.csv')
@@ -40,17 +59,12 @@ def main():
     y = le.fit_transform(df['Resolution_Label'])
     print(f"\nClasses: {le.classes_}")
 
-    # --- SMOTE: Oversample minority classes so all 3 classes are balanced ---
-    print("\nApplying SMOTE to balance classes...")
-    try:
-        sm = SMOTE(random_state=42, k_neighbors=min(3, df['Resolution_Label'].value_counts().min() - 1))
-        X_res, y_res = sm.fit_resample(X, y)
-        print(f"After SMOTE: {len(X_res)} rows (was {len(X)})")
-    except Exception as e:
-        print(f"SMOTE skipped ({e}), using original data.")
-        X_res, y_res = X, y
+    # Manual oversampling (no imblearn/DLL dependency)
+    print("\nApplying manual oversampling to balance classes...")
+    X_res, y_res = manual_oversample(X, y)
+    print(f"After oversampling: {len(X_res)} rows (was {len(X)})")
 
-    # --- XGBoost V3 with better hyperparameters ---
+    # XGBoost V3 with tuned hyperparameters
     model = xgb.XGBClassifier(
         objective='multi:softprob',
         num_class=len(le.classes_),
@@ -64,30 +78,29 @@ def main():
         gamma=0.1,
         reg_alpha=0.1,
         reg_lambda=1.5,
-        random_state=42,
-        use_label_encoder=False
+        random_state=42
     )
 
-    # --- Cross Validation (5-fold) for more reliable accuracy ---
+    # 5-Fold Cross Validation
     print("\nRunning 5-Fold Cross Validation...")
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     cv_scores = cross_val_score(model, X_res, y_res, cv=skf, scoring='accuracy')
     print(f"CV Accuracy per fold: {[f'{s:.2f}' for s in cv_scores]}")
     print(f"Mean CV Accuracy: {cv_scores.mean()*100:.2f}% (+/- {cv_scores.std()*100:.2f}%)")
 
-    # --- Train on full balanced dataset for final model ---
+    # Train on full balanced dataset
     print("\nTraining final model on full balanced dataset...")
     model.fit(X_res, y_res)
 
-    # --- Final Evaluation on ORIGINAL (unbalanced) data ---
+    # Final Evaluation on ORIGINAL data
     print("\n--- Final Evaluation (on original real-world distribution) ---")
     y_pred = model.predict(X)
     print(f"Overall Accuracy: {accuracy_score(y, y_pred) * 100:.2f}%\n")
     print("Per-Class Metrics:")
     print(classification_report(y, y_pred, labels=range(len(le.classes_)), target_names=le.classes_, zero_division=0))
 
-    # --- Feature Importance ---
-    print("\n--- Feature Importance (what the model uses most) ---")
+    # Feature Importance
+    print("\n--- Feature Importance ---")
     importance = dict(zip(FEATURE_COLS, model.feature_importances_))
     for feat, imp in sorted(importance.items(), key=lambda x: -x[1]):
         print(f"  {feat}: {imp:.4f}")
